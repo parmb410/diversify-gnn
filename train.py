@@ -60,6 +60,9 @@ def main(args):
         if hasattr(algorithm, "dbottleneck"):
             algorithm.dbottleneck = nn.Linear(gnn_out_dim, 256).cuda()
             print(f"[INFO] Domain bottleneck (dbottleneck) adjusted for GNN: {gnn_out_dim} -> 256")
+        # === NEW for GNN in set_dlabel (do NOT remove these lines) ===
+        algorithm.gnn_extractor = gnn
+        algorithm.use_gnn = True
 
     optd = get_optimizer(algorithm, args, nettype='Diversify-adv')
     opt = get_optimizer(algorithm, args, nettype='Diversify-cls')
