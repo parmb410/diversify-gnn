@@ -46,7 +46,9 @@ def main(args):
             lstm_hidden=gnn_params["lstm_hidden"],
             output_dim=gnn_params["feature_output_dim"]
         ).cuda()
-        print('[INFO] GNN feature extractor initialized.')
+        # >>>>> KEY CHANGE: Overwrite featurizer with identity for GNN <<<<<
+        algorithm.featurizer = nn.Identity()
+        print('[INFO] GNN feature extractor initialized. CNN featurizer is bypassed.')
 
     optd = get_optimizer(algorithm, args, nettype='Diversify-adv')
     opt = get_optimizer(algorithm, args, nettype='Diversify-cls')
@@ -63,17 +65,19 @@ def main(args):
                 # === GNN: extract features if enabled ===
                 if use_gnn and gnn is not None:
                     batch_x = data[0] if isinstance(data, (list, tuple)) else data
-                    print("batch_x.shape before squeeze:", batch_x.shape)
                     if len(batch_x.shape) == 4 and batch_x.shape[2] == 1:
                         batch_x = batch_x.squeeze(2)
-                    print("batch_x.shape after squeeze (if applied):", batch_x.shape)
                     gnn_graphs = build_correlation_graph(batch_x.cuda())
                     from torch_geometric.loader import DataLoader as GeoDataLoader
                     geo_loader = GeoDataLoader(gnn_graphs, batch_size=len(gnn_graphs))
                     for graph_batch in geo_loader:
                         graph_batch = graph_batch.cuda()
                         gnn_features = gnn(graph_batch)
-                    data = (gnn_features, *data[1:]) if isinstance(data, (list, tuple)) and len(data) > 1 else gnn_features
+                    # >>>>> Only pass GNN features and label(s) forward <<<<<
+                    if isinstance(data, (list, tuple)) and len(data) > 1:
+                        data = (gnn_features, *data[1:])
+                    else:
+                        data = gnn_features
                 # === END GNN block ===
 
                 loss_result_dict = algorithm.update_a(data, opta)
@@ -88,17 +92,18 @@ def main(args):
                 # === GNN: extract features if enabled ===
                 if use_gnn and gnn is not None:
                     batch_x = data[0] if isinstance(data, (list, tuple)) else data
-                    print("batch_x.shape before squeeze:", batch_x.shape)
                     if len(batch_x.shape) == 4 and batch_x.shape[2] == 1:
                         batch_x = batch_x.squeeze(2)
-                    print("batch_x.shape after squeeze (if applied):", batch_x.shape)
                     gnn_graphs = build_correlation_graph(batch_x.cuda())
                     from torch_geometric.loader import DataLoader as GeoDataLoader
                     geo_loader = GeoDataLoader(gnn_graphs, batch_size=len(gnn_graphs))
                     for graph_batch in geo_loader:
                         graph_batch = graph_batch.cuda()
                         gnn_features = gnn(graph_batch)
-                    data = (gnn_features, *data[1:]) if isinstance(data, (list, tuple)) and len(data) > 1 else gnn_features
+                    if isinstance(data, (list, tuple)) and len(data) > 1:
+                        data = (gnn_features, *data[1:])
+                    else:
+                        data = gnn_features
                 # === END GNN block ===
 
                 loss_result_dict = algorithm.update_d(data, optd)
@@ -122,13 +127,18 @@ def main(args):
                 # === GNN: extract features if enabled ===
                 if use_gnn and gnn is not None:
                     batch_x = data[0] if isinstance(data, (list, tuple)) else data
+                    if len(batch_x.shape) == 4 and batch_x.shape[2] == 1:
+                        batch_x = batch_x.squeeze(2)
                     gnn_graphs = build_correlation_graph(batch_x.cuda())
                     from torch_geometric.loader import DataLoader as GeoDataLoader
                     geo_loader = GeoDataLoader(gnn_graphs, batch_size=len(gnn_graphs))
                     for graph_batch in geo_loader:
                         graph_batch = graph_batch.cuda()
                         gnn_features = gnn(graph_batch)
-                    data = (gnn_features, *data[1:]) if isinstance(data, (list, tuple)) and len(data) > 1 else gnn_features
+                    if isinstance(data, (list, tuple)) and len(data) > 1:
+                        data = (gnn_features, *data[1:])
+                    else:
+                        data = gnn_features
                 # === END GNN block ===
 
                 step_vals = algorithm.update(data, opt)
