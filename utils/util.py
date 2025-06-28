@@ -88,21 +88,23 @@ class Tee:
 
 
 def act_param_init(args):
-    args.select_position = {'emg': [0]}
-    args.select_channel = {'emg': np.arange(8)}
-    args.hz_list = {'emg': 1000}
-    args.act_people = {'emg': [[i*9+j for j in range(9)]for i in range(4)]}
-    # Add configs here as needed:
+    args.select_position = {'emg': [0], 'dsads': [0]}
+    args.select_channel = {'emg': np.arange(8), 'dsads': np.arange(45)}
+    args.hz_list = {'emg': 1000, 'dsads': 25}
+    args.act_people = {
+        'emg': [[i*9+j for j in range(9)]for i in range(4)],
+        'dsads': [[i*8+j for j in range(8)]for i in range(8)]  # Example
+    }
     tmp = {
-    'emg': ((8, 1, 200), 6, 10),
-    'dsads': ((45, 1, 125), 19, 5),}
+        'emg': ((8, 1, 200), 6, 10),
+        'dsads': ((45, 1, 125), 19, 5)  # <-- example config, update as needed
+    }
     if args.dataset not in tmp:
         raise ValueError(
             f"Dataset '{args.dataset}' not supported in act_param_init(). "
             f"Supported datasets are: {list(tmp.keys())}.\n"
             f"Either use --dataset emg or add your dataset config to act_param_init()."
         )
-    # This tuple order is: (input_shape, num_classes, grid_size)
     args.input_shape, args.num_classes, args.grid_size = tmp[args.dataset]
     return args
 
