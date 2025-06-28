@@ -162,7 +162,42 @@ class Diversify(Algorithm):
         return {'class': classifier_loss.item()}
 
     def predict(self, x):
+    # Support GNN mode
+    if hasattr(self, 'use_gnn') and getattr(self, 'use_gnn', False) and hasattr(self, 'gnn_extractor'):
+        # Ensure shape [batch, channels, timesteps]
+        if x.ndim == 4 and x.shape[2] == 1:
+            x = x.squeeze(2)
+        gnn_graphs = None
+        try:
+            from models.gnn_extractor import build_correlation_graph
+            gnn_graphs = build_correlation_graph(x.cuda())
+        except Exception:
+            gnn_graphs = build_correlation_graph(x.cuda())
+        from torch_geometric.loader import DataLoader as GeoDataLoader
+        geo_loader = GeoDataLoader(gnn_graphs, batch_size=len(gnn_graphs))
+        for graph_batch in geo_loader:
+            graph_batch = graph_batch.cuda()
+            gnn_features = self.gnn_extractor(graph_batch)
+        return self.classifier(self.bottleneck(gnn_features))
+    else:
         return self.classifier(self.bottleneck(self.featurizer(x)))
 
     def predict1(self, x):
-        return self.ddiscriminator(self.dbottleneck(self.featurizer(x)))
+        # Support GNN mode
+        if hasattr(self, 'use_gnn') and getattr(self, 'use_gnn', False) and hasattr(self, 'gnn_extractor'):
+            if x.ndim == 4 and x.shape[2] == 1:
+                x = x.squeeze(2)
+            gnn_graphs = None
+            try:
+                from models.gnn_extractor import build_correlation_graph
+                gnn_graphs = build_correlation_graph(x.cuda())
+            except Exception:
+                gnn_graphs = build_correlation_graph(x.cuda())
+            from torch_geometric.loader import DataLoader as GeoDataLoader
+            geo_loader = GeoDataLoader(gnn_graphs, batch_size=len(gnn_graphs))
+            for graph_batch in geo_loader:
+                graph_batch = graph_batch.cuda()
+                gnn_features = self.gnn_extractor(graph_batch)
+            return self.ddiscriminator(self.dbottleneck(gnn_features))
+        else:
+            return self.ddiscriminator(self.dbottleneck(self.featurizer(x)))
