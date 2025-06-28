@@ -49,6 +49,14 @@ def main(args):
         # >>>>> KEY CHANGE: Overwrite featurizer with identity for GNN <<<<<
         algorithm.featurizer = nn.Identity()
         print('[INFO] GNN feature extractor initialized. CNN featurizer is bypassed.')
+        # >>>>> NEW: Patch bottleneck(s) for GNN feature size <<<<<
+        gnn_out_dim = gnn.out.out_features
+        if hasattr(algorithm, "bottleneck"):
+            algorithm.bottleneck = nn.Linear(gnn_out_dim, 256).cuda()
+            print(f"[INFO] Bottleneck adjusted for GNN: {gnn_out_dim} -> 256")
+        if hasattr(algorithm, "abottleneck"):
+            algorithm.abottleneck = nn.Linear(gnn_out_dim, 256).cuda()
+            print(f"[INFO] Adversarial bottleneck adjusted for GNN: {gnn_out_dim} -> 256")
 
     optd = get_optimizer(algorithm, args, nettype='Diversify-adv')
     opt = get_optimizer(algorithm, args, nettype='Diversify-cls')
