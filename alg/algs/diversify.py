@@ -13,7 +13,6 @@ from network import Adver_network, common_network
 from alg.algs.base import Algorithm
 from loss.common_loss import Entropylogits
 
-
 class Diversify(Algorithm):
 
     def __init__(self, args):
@@ -63,6 +62,11 @@ class Diversify(Algorithm):
         self.dclassifier.eval()
         self.featurizer.eval()
 
+        # === GNN INTEGRATION: auto-detect and use GNN extractor if present ===
+        use_gnn = hasattr(self, 'use_gnn') and getattr(self, 'use_gnn', False)
+        gnn_extractor = getattr(self, 'gnn_extractor', None)
+        from models.gnn_extractor import build_correlation_graph # safe import, does nothing if not GNN
+
         start_test = True
         with torch.no_grad():
             iter_test = iter(loader)
@@ -71,7 +75,21 @@ class Diversify(Algorithm):
                 inputs = data[0]
                 inputs = inputs.cuda().float()
                 index = data[-1]
-                feas = self.dbottleneck(self.featurizer(inputs))
+
+                if use_gnn and gnn_extractor is not None:
+                    # Ensure shape is [batch, channels, timesteps]
+                    if inputs.ndim == 4 and inputs.shape[2] == 1:
+                        inputs = inputs.squeeze(2)
+                    gnn_graphs = build_correlation_graph(inputs)
+                    from torch_geometric.loader import DataLoader as GeoDataLoader
+                    geo_loader = GeoDataLoader(gnn_graphs, batch_size=len(gnn_graphs))
+                    for graph_batch in geo_loader:
+                        graph_batch = graph_batch.cuda()
+                        gnn_features = gnn_extractor(graph_batch)
+                    feas = self.dbottleneck(gnn_features)
+                else:
+                    feas = self.dbottleneck(self.featurizer(inputs))
+
                 outputs = self.dclassifier(feas)
                 if start_test:
                     all_fea = feas.float().cpu()
