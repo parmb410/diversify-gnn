@@ -95,8 +95,7 @@ def act_param_init(args):
     # Add configs here as needed:
     tmp = {
     'emg': ((8, 1, 200), 6, 10),
-    'dsads': ((45, 1, 125), 19, 5),  # <-- update these values for dsads!
-}
+    'dsads': ((45, 1, 125), 19, 5),}
     if args.dataset not in tmp:
         raise ValueError(
             f"Dataset '{args.dataset}' not supported in act_param_init(). "
