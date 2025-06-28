@@ -94,10 +94,9 @@ def act_param_init(args):
     args.act_people = {'emg': [[i*9+j for j in range(9)]for i in range(4)]}
     # Add configs here as needed:
     tmp = {
-        'emg': ((8, 1, 200), 6, 10)
-        # Add more dataset configs here, e.g.:
-        # 'mydataset': ((ch, 1, timesteps), num_classes, grid_size)
-    }
+    'emg': ((8, 1, 200), 6, 10),
+    'dsads': ((45, 1, 125), 19, 5),  # <-- update these values for dsads!
+}
     if args.dataset not in tmp:
         raise ValueError(
             f"Dataset '{args.dataset}' not supported in act_param_init(). "
