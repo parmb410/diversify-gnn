@@ -33,7 +33,7 @@ def main(args):
     algorithm.train()
 
     # ===== GNN feature extractor integration =====
-    use_gnn = hasattr(args, "algorithm") and "gnn" in args.algorithm.lower()
+    use_gnn = getattr(args, "use_gnn", 0)
     gnn = None
     if use_gnn:
         # Assumes data shape is [batch, channels, timesteps]
@@ -62,7 +62,6 @@ def main(args):
             for data in train_loader:
                 # === GNN: extract features if enabled ===
                 if use_gnn and gnn is not None:
-                    # Assuming data is a tuple: (input, labels, ...)
                     batch_x = data[0] if isinstance(data, (list, tuple)) else data
                     gnn_graphs = build_correlation_graph(batch_x.cuda())
                     from torch_geometric.loader import DataLoader as GeoDataLoader
@@ -70,9 +69,6 @@ def main(args):
                     for graph_batch in geo_loader:
                         graph_batch = graph_batch.cuda()
                         gnn_features = gnn(graph_batch)
-                    # Replace original features with GNN features for the algorithm
-                    # Update 'data' tuple for the algorithm if needed
-                    # This may need to be customized for your dataset!
                     data = (gnn_features, *data[1:]) if isinstance(data, (list, tuple)) and len(data) > 1 else gnn_features
                 # === END GNN block ===
 
