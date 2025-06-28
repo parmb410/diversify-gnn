@@ -92,10 +92,20 @@ def act_param_init(args):
     args.select_channel = {'emg': np.arange(8)}
     args.hz_list = {'emg': 1000}
     args.act_people = {'emg': [[i*9+j for j in range(9)]for i in range(4)]}
-    tmp = {'emg': ((8, 1, 200), 6, 10)}
-    args.num_classes, args.input_shape, args.grid_size = tmp[
-        args.dataset][1], tmp[args.dataset][0], tmp[args.dataset][2]
-
+    # Add configs here as needed:
+    tmp = {
+        'emg': ((8, 1, 200), 6, 10)
+        # Add more dataset configs here, e.g.:
+        # 'mydataset': ((ch, 1, timesteps), num_classes, grid_size)
+    }
+    if args.dataset not in tmp:
+        raise ValueError(
+            f"Dataset '{args.dataset}' not supported in act_param_init(). "
+            f"Supported datasets are: {list(tmp.keys())}.\n"
+            f"Either use --dataset emg or add your dataset config to act_param_init()."
+        )
+    # This tuple order is: (input_shape, num_classes, grid_size)
+    args.input_shape, args.num_classes, args.grid_size = tmp[args.dataset]
     return args
 
 
