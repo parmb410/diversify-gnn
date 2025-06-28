@@ -64,8 +64,8 @@ def main(args):
                 if use_gnn and gnn is not None:
                     batch_x = data[0] if isinstance(data, (list, tuple)) else data
                     print("batch_x.shape before squeeze:", batch_x.shape)
-                    if len(batch_x.shape) == 4 and batch_x.shape[1] == 1:
-                        batch_x = batch_x.squeeze(1)  # Remove singleton dimension if present
+                    if len(batch_x.shape) == 4 and batch_x.shape[2] == 1:
+                        batch_x = batch_x.squeeze(2)
                     print("batch_x.shape after squeeze (if applied):", batch_x.shape)
                     gnn_graphs = build_correlation_graph(batch_x.cuda())
                     from torch_geometric.loader import DataLoader as GeoDataLoader
@@ -88,6 +88,10 @@ def main(args):
                 # === GNN: extract features if enabled ===
                 if use_gnn and gnn is not None:
                     batch_x = data[0] if isinstance(data, (list, tuple)) else data
+                    print("batch_x.shape before squeeze:", batch_x.shape)
+                    if len(batch_x.shape) == 4 and batch_x.shape[2] == 1:
+                        batch_x = batch_x.squeeze(2)
+                    print("batch_x.shape after squeeze (if applied):", batch_x.shape)
                     gnn_graphs = build_correlation_graph(batch_x.cuda())
                     from torch_geometric.loader import DataLoader as GeoDataLoader
                     geo_loader = GeoDataLoader(gnn_graphs, batch_size=len(gnn_graphs))
