@@ -8,9 +8,10 @@ from utils.util import set_random_seed, get_args, print_row, print_args, train_v
 from datautil.getdataloader_single import get_act_dataloader
 import torch
 import torch.nn as nn
+
+# === GNN imports ===
 from models.gnn_extractor import TemporalGCN, build_correlation_graph
 from diversify.utils.params import gnn_params
-
 
 def main(args):
     s = print_args(args, [])
@@ -23,14 +24,30 @@ def main(args):
     else:
         args.batch_size = 16*args.latent_domain_num
 
-    train_loader, train_loader_noshuffle, valid_loader, target_loader, _, _, _ = get_act_dataloader(
-        args)
+    train_loader, train_loader_noshuffle, valid_loader, target_loader, _, _, _ = get_act_dataloader(args)
 
     best_valid_acc, target_acc = 0, 0
 
     algorithm_class = alg.get_algorithm_class(args.algorithm)
     algorithm = algorithm_class(args).cuda()
     algorithm.train()
+
+    # ===== GNN feature extractor integration =====
+    use_gnn = hasattr(args, "algorithm") and "gnn" in args.algorithm.lower()
+    gnn = None
+    if use_gnn:
+        # Assumes data shape is [batch, channels, timesteps]
+        example_batch = next(iter(train_loader))[0] if hasattr(train_loader, '__iter__') else None
+        in_channels = example_batch.shape[1] if example_batch is not None else 8
+        gnn = TemporalGCN(
+            in_channels=in_channels,
+            hidden_dim=gnn_params["gcn_hidden_dim"],
+            num_layers=gnn_params["gcn_num_layers"],
+            lstm_hidden=gnn_params["lstm_hidden"],
+            output_dim=gnn_params["feature_output_dim"]
+        ).cuda()
+        print('[INFO] GNN feature extractor initialized.')
+
     optd = get_optimizer(algorithm, args, nettype='Diversify-adv')
     opt = get_optimizer(algorithm, args, nettype='Diversify-cls')
     opta = get_optimizer(algorithm, args, nettype='Diversify-all')
@@ -43,9 +60,24 @@ def main(args):
 
         for step in range(args.local_epoch):
             for data in train_loader:
+                # === GNN: extract features if enabled ===
+                if use_gnn and gnn is not None:
+                    # Assuming data is a tuple: (input, labels, ...)
+                    batch_x = data[0] if isinstance(data, (list, tuple)) else data
+                    gnn_graphs = build_correlation_graph(batch_x.cuda())
+                    from torch_geometric.loader import DataLoader as GeoDataLoader
+                    geo_loader = GeoDataLoader(gnn_graphs, batch_size=len(gnn_graphs))
+                    for graph_batch in geo_loader:
+                        graph_batch = graph_batch.cuda()
+                        gnn_features = gnn(graph_batch)
+                    # Replace original features with GNN features for the algorithm
+                    # Update 'data' tuple for the algorithm if needed
+                    # This may need to be customized for your dataset!
+                    data = (gnn_features, *data[1:]) if isinstance(data, (list, tuple)) and len(data) > 1 else gnn_features
+                # === END GNN block ===
+
                 loss_result_dict = algorithm.update_a(data, opta)
-            print_row([step]+[loss_result_dict[item]
-                              for item in loss_list], colwidth=15)
+            print_row([step]+[loss_result_dict[item] for item in loss_list], colwidth=15)
 
         print('====Latent domain characterization====')
         loss_list = ['total', 'dis', 'ent']
@@ -53,9 +85,20 @@ def main(args):
 
         for step in range(args.local_epoch):
             for data in train_loader:
+                # === GNN: extract features if enabled ===
+                if use_gnn and gnn is not None:
+                    batch_x = data[0] if isinstance(data, (list, tuple)) else data
+                    gnn_graphs = build_correlation_graph(batch_x.cuda())
+                    from torch_geometric.loader import DataLoader as GeoDataLoader
+                    geo_loader = GeoDataLoader(gnn_graphs, batch_size=len(gnn_graphs))
+                    for graph_batch in geo_loader:
+                        graph_batch = graph_batch.cuda()
+                        gnn_features = gnn(graph_batch)
+                    data = (gnn_features, *data[1:]) if isinstance(data, (list, tuple)) and len(data) > 1 else gnn_features
+                # === END GNN block ===
+
                 loss_result_dict = algorithm.update_d(data, optd)
-            print_row([step]+[loss_result_dict[item]
-                              for item in loss_list], colwidth=15)
+            print_row([step]+[loss_result_dict[item] for item in loss_list], colwidth=15)
 
         algorithm.set_dlabel(train_loader)
 
@@ -72,6 +115,18 @@ def main(args):
         sss = time.time()
         for step in range(args.local_epoch):
             for data in train_loader:
+                # === GNN: extract features if enabled ===
+                if use_gnn and gnn is not None:
+                    batch_x = data[0] if isinstance(data, (list, tuple)) else data
+                    gnn_graphs = build_correlation_graph(batch_x.cuda())
+                    from torch_geometric.loader import DataLoader as GeoDataLoader
+                    geo_loader = GeoDataLoader(gnn_graphs, batch_size=len(gnn_graphs))
+                    for graph_batch in geo_loader:
+                        graph_batch = graph_batch.cuda()
+                        gnn_features = gnn(graph_batch)
+                    data = (gnn_features, *data[1:]) if isinstance(data, (list, tuple)) and len(data) > 1 else gnn_features
+                # === END GNN block ===
+
                 step_vals = algorithm.update(data, opt)
 
             results = {
